@@ -1,6 +1,6 @@
 #[test_only]
 module aptos_spin_claim::spin_claim_tests {
-  use aptos_framework::fungible_asset::{Self, FungibleAsset};
+  use aptos_framework::fungible_asset::{Self, FungibleAsset, FungibleStore};
   use aptos_framework::object::{Self, Object};
   use aptos_framework::primary_fungible_store;
   use aptos_std::simple_map;
@@ -89,6 +89,26 @@ module aptos_spin_claim::spin_claim_tests {
     assert!(spin_claim::get_registry() == vector[api_obj], 0);
   }
 
+  #[test(admin = @aptos_spin_claim, new_admin = @0xbeef)]
+  fun test_remove_fa(admin: &signer, new_admin: &signer) {
+    test_helpers::set_up();
+    spin_claim::initialize(admin);
+
+    let new_admin_addr = signer::address_of(new_admin);
+    spin_claim::set_admin(admin, new_admin_addr);
+
+    let api = test_helpers::create_fungible_asset_and_mint(new_admin, b"Airdropify", 8, 0);
+    let api_obj = fungible_asset::asset_metadata(&api);
+
+    spin_claim::add_fa(new_admin, api_obj);
+    // dispose the api object
+    fungible_asset::destroy_zero(api);
+    assert!(spin_claim::get_registry() == vector[api_obj], 0);
+
+    spin_claim::remove_fa(new_admin, api_obj);
+    assert!(spin_claim::get_registry() == vector[], 0);
+  }
+
   #[test(module_signer = @aptos_spin_claim, admin = @0xbeef)]
   fun test_deposit_fa(module_signer: &signer, admin: &signer) {
     test_helpers::set_up();
@@ -100,6 +120,7 @@ module aptos_spin_claim::spin_claim_tests {
     let api = test_helpers::create_fungible_asset_and_mint(admin, b"Airdropify", 8, 1_000_000);
     let api_obj = fungible_asset::asset_metadata(&api);
 
+    // create a primary store
     let store_addr = primary_fungible_store::primary_store_address(admin_addr, api_obj);
     let store = if (fungible_asset::store_exists(store_addr)) {
       object::address_to_object(store_addr)
@@ -113,12 +134,9 @@ module aptos_spin_claim::spin_claim_tests {
     spin_claim::add_fa(admin, api_obj);
 
     // deposit the fa to the spin claim contract
-    primary_fungible_store::transfer(admin, api_obj, signer::address_of(module_signer), 1_000_000);
+    spin_claim::deposit_fa(admin, api_obj, 1_000_000);
 
-    // dispose the api object
-    // fungible_asset::destroy_zero(api);
-
-    let balance = primary_fungible_store::balance(signer::address_of(module_signer), api_obj);
+    let balance = spin_claim::get_asset_store_balance(api_obj);
     assert!(balance == 1_000_000, 0);
   }
 
@@ -155,9 +173,9 @@ module aptos_spin_claim::spin_claim_tests {
     spin_claim::add_fa(admin, api_obj);
 
     // deposit the fa to the spin claim contract
-    primary_fungible_store::transfer(admin, api_obj, signer::address_of(module_signer), 1_000_000);
+    spin_claim::deposit_fa(admin, api_obj, 1_000_000);
 
-    let balance = primary_fungible_store::balance(signer::address_of(module_signer), api_obj);
+    let balance = spin_claim::get_asset_store_balance(api_obj);
     assert!(balance == 1_000_000, 0);
 
     let amount = 10;
@@ -181,5 +199,13 @@ module aptos_spin_claim::spin_claim_tests {
       amount,
       sig_bytes,
     );
+
+    let user_store_addr = primary_fungible_store::primary_store_address(user_addr, api_obj);
+    let user_store = object::address_to_object<FungibleStore>(user_store_addr);
+    let user_balance = fungible_asset::balance(user_store);
+    assert!(user_balance == 10, 0);
+
+    let claim_history_amount = spin_claim::get_claim_history_amount(user_addr, api_obj, index);
+    assert!(claim_history_amount == 10, 0);
   }
 }
