@@ -1,0 +1,18 @@
+[package]
+name = "aptos-spin-claim"
+version = "1.0.0"
+authors = []
+
+[addresses]
+aptos_spin_claim = "322f0fc26d967448889b0db2f50f064fb91d437d043fce643fddc1bada943fd6"
+admin = "321932c05fb018fb79326519e44a0e60567b6f46cd9956fba9cd3218bdba3d61"
+operator = "0c35d7f15c0918b18e65f0574d75356079d6b1e79c92a537fd5e544d758ef678"
+
+[dev-addresses]
+
+[dependencies.AptosFramework]
+git = "https://github.com/aptos-labs/aptos-core.git"
+rev = "bbf569abd260d94bc30fe96da297d2aecb193644"
+subdir = "aptos-move/framework/aptos-framework"
+
+[dev-dependencies]
